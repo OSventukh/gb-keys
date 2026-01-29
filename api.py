@@ -8,12 +8,14 @@ import os
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query
 
 from parser import GameBoostParser
 
 DATA_FILE = "latest.json"
 CACHE_TTL_SECONDS = 15 * 60
+STORAGE_DIR = "storage_dumps"
+UPLOAD_TOKEN = os.getenv("STORAGE_UPLOAD_TOKEN")
 
 app = FastAPI(title="GameBoost Trending API", version="1.0.0")
 
@@ -123,3 +125,23 @@ async def refresh(
         "count": len(items),
         "items": items,
     }
+
+
+@app.post("/storage")
+async def upload_storage(
+    name: str = Query(..., description="Назва файла, напр. state_usd.json"),
+    token: Optional[str] = Query(None, description="Опціональний токен"),
+    payload: Dict[str, Any] = Body(...),
+) -> Dict[str, Any]:
+    if UPLOAD_TOKEN and token != UPLOAD_TOKEN:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    if "/" in name or "\\" in name:
+        raise HTTPException(status_code=400, detail="Invalid file name")
+
+    os.makedirs(STORAGE_DIR, exist_ok=True)
+    path = os.path.join(STORAGE_DIR, name)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    return {"saved": True, "path": path}

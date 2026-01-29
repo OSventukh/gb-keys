@@ -13,6 +13,7 @@ COPY requirements-prod.txt /app/requirements-prod.txt
 RUN pip install --no-cache-dir -r /app/requirements-prod.txt
 
 COPY . /app
+RUN mkdir -p /app/storage_dumps
 
 EXPOSE 8000
 
