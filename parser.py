@@ -195,6 +195,7 @@ class GameBoostParser:
         Швидший метод для простих випадків
         """
         try:
+            self.last_debug = {}
             scraper = cloudscraper.create_scraper(
                 browser={
                     'browser': 'chrome',
@@ -221,15 +222,22 @@ class GameBoostParser:
 
             print(f"Завантаження сторінки через cloudscraper: {url}")
             response = scraper.get(url, timeout=30, headers=headers, cookies=cookies)
+            self.last_debug.update({
+                "cloudscraper_status": response.status_code,
+                "cloudscraper_url": url,
+                "cloudscraper_response_url": response.url,
+            })
             
             if response.status_code == 200:
                 return self._parse_html(response.text)
             else:
                 print(f"❌ Помилка HTTP {response.status_code}")
-                return None
+                self.last_debug["cloudscraper_body_snippet"] = response.text[:500]
+                return []
                 
         except Exception as e:
             print(f"❌ Помилка при парсингу з cloudscraper: {e}")
+            self.last_debug["cloudscraper_error"] = str(e)
             return None
     
     def parse_with_selenium(self) -> Optional[List[Dict]]:
