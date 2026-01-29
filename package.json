@@ -1,0 +1,11 @@
+{
+  "name": "gameboost-keys-parser",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Puppeteer helper to capture cookies/storage",
+  "dependencies": {
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  }
+}

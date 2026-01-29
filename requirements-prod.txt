@@ -1,0 +1,5 @@
+fastapi==0.110.2
+uvicorn==0.29.0
+beautifulsoup4==4.12.2
+cloudscraper==1.2.71
+lxml==4.9.3

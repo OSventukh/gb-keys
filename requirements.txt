@@ -1,0 +1,10 @@
+playwright==1.40.0
+playwright-stealth==2.0.1
+beautifulsoup4==4.12.2
+requests==2.31.0
+cloudscraper==1.2.71
+selenium==4.15.2
+undetected-chromedriver==3.5.4
+lxml==4.9.3
+fastapi==0.110.2
+uvicorn==0.29.0
