@@ -12,9 +12,6 @@ from typing import List, Dict, Optional
 
 from bs4 import BeautifulSoup
 import cloudscraper
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 
 class GameBoostParser:
@@ -247,6 +244,10 @@ class GameBoostParser:
                 print("💡 Спробуйте встановити setuptools або використайте метод playwright/cloudscraper.")
                 print(f"Деталі: {import_error}")
                 return None
+
+            from selenium.webdriver.common.by import By
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
 
             options = uc.ChromeOptions()
             options.add_argument('--disable-blink-features=AutomationControlled')
