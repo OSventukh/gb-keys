@@ -5,6 +5,7 @@ API для доступу до найновіших даних Trending
 import asyncio
 import json
 import os
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -22,6 +23,7 @@ app = FastAPI(title="GameBoost Trending API", version="1.0.0")
 _state: Dict[str, Any] = {
     "items": {},
     "updated_at": {},
+    "debug": {},
 }
 
 
@@ -37,6 +39,7 @@ def _load_from_disk() -> None:
             payload = json.load(f)
         items = payload.get("items", {})
         updated_at = payload.get("updated_at", {})
+        debug = payload.get("debug", {})
 
         if isinstance(items, list):
             items = {"USD": items}
@@ -45,6 +48,7 @@ def _load_from_disk() -> None:
 
         _state["items"] = items if isinstance(items, dict) else {}
         _state["updated_at"] = updated_at if isinstance(updated_at, dict) else {}
+        _state["debug"] = debug if isinstance(debug, dict) else {}
     except Exception:
         pass
 
@@ -53,6 +57,7 @@ def _save_to_disk() -> None:
     payload = {
         "updated_at": _state.get("updated_at"),
         "items": _state.get("items", {}),
+        "debug": _state.get("debug", {}),
     }
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
@@ -77,10 +82,17 @@ async def _refresh_data(
     parser = GameBoostParser()
     cookies = None
     if storage_file:
-        cookies = parser.load_cookies_from_dump(storage_file)
+        storage_path = Path(storage_file)
+        if not storage_path.is_absolute():
+            if not str(storage_path).startswith(STORAGE_DIR):
+                storage_path = Path(STORAGE_DIR) / storage_path
+        if not storage_path.exists():
+            raise HTTPException(status_code=400, detail=f"storage_file not found: {storage_path}")
+        cookies = parser.load_cookies_from_dump(str(storage_path))
     items = await parser.parse(method=method, currency=currency, cookies=cookies)
     _state["items"][currency] = items
     _state["updated_at"][currency] = _now_iso()
+    _state["debug"][currency] = parser.last_debug
     _save_to_disk()
     return items
 
@@ -96,17 +108,21 @@ async def get_trending(
     method: str = Query("auto", description="playwright | cloudscraper | selenium | auto"),
     currency: str = Query("USD", description="USD | EUR | UAH"),
     storage_file: Optional[str] = Query(None, description="Шлях до storage_dumps/state_*.json"),
+    debug: bool = Query(False, description="Додати debug-інформацію"),
 ) -> Dict[str, Any]:
     currency = currency.upper()
     if refresh or _is_stale(currency) or not _state.get("items", {}).get(currency):
         await _refresh_data(method=method, currency=currency, storage_file=storage_file)
 
-    return {
+    response = {
         "currency": currency,
         "updated_at": _state.get("updated_at", {}).get(currency),
         "count": len(_state.get("items", {}).get(currency, [])),
         "items": _state.get("items", {}).get(currency, []),
     }
+    if debug:
+        response["debug"] = _state.get("debug", {}).get(currency, {})
+    return response
 
 
 @app.post("/refresh")

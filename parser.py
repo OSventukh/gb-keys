@@ -20,6 +20,7 @@ class GameBoostParser:
     def __init__(self):
         self.url = "https://gameboost.com/keys"
         self.results = []
+        self.last_debug = {}
     
     async def parse_with_playwright(self) -> Optional[List[Dict]]:
         """
@@ -284,11 +285,18 @@ class GameBoostParser:
         """
         soup = BeautifulSoup(html, 'lxml')
         keys_data = []
+        self.last_debug = {}
         
         # Зберігаємо HTML для аналізу
         with open('page_content.html', 'w', encoding='utf-8') as f:
             f.write(html)
         print("📄 HTML збережено у файл page_content.html для аналізу")
+
+        # Простий детект Cloudflare challenge
+        cf_detected = bool(soup.find('script', src=lambda x: x and 'cdn-cgi/challenge' in x))
+        if not cf_detected and "__CF$cv$params" in html:
+            cf_detected = True
+        self.last_debug["cloudflare_detected"] = cf_detected
 
         # 1) Спочатку пробуємо взяти Trending із data-page (JSON)
         data_page_items = self._parse_data_page_trending(soup)
@@ -384,13 +392,32 @@ class GameBoostParser:
     def _parse_data_page_trending(self, soup: BeautifulSoup) -> List[Dict]:
         app_div = soup.find('div', id='app')
         if not app_div or not app_div.has_attr('data-page'):
+            self.last_debug.update({
+                "data_page_found": False,
+            })
             return []
 
         try:
             raw = html_lib.unescape(app_div['data-page'])
             page_data = json.loads(raw)
         except Exception:
+            self.last_debug.update({
+                "data_page_found": True,
+                "data_page_parsed": False,
+            })
             return []
+
+        props = page_data.get("props", {})
+        session = props.get("session", {})
+        self.last_debug.update({
+            "data_page_found": True,
+            "data_page_parsed": True,
+            "data_page_component": page_data.get("component"),
+            "props_currency": props.get("currency"),
+            "session_currency_id": session.get("currency_id"),
+            "ip_country": (session.get("ip_country") or {}).get("code_2"),
+            "props_keys": list(props.keys())[:30],
+        })
 
         trending_lists = []
 
@@ -416,7 +443,7 @@ class GameBoostParser:
                 for item in lst[:5]:
                     keys.update(item.keys())
                 key_text = " ".join(keys).lower()
-                return any(k in key_text for k in ['price', 'cost', 'title', 'name'])
+                return any(k in key_text for k in ['price', 'cost', 'title', 'name', 'local_price', 'retail_price'])
 
             def find_any_lists(obj):
                 found = []
@@ -433,9 +460,20 @@ class GameBoostParser:
             candidates = find_any_lists(page_data)
 
         if not candidates:
+            self.last_debug.update({
+                "trending_candidates": 0,
+            })
             return []
 
         items = candidates[0]
+        sample_keys = []
+        for item in items[:3]:
+            if isinstance(item, dict):
+                sample_keys.append(list(item.keys())[:20])
+        self.last_debug.update({
+            "trending_candidates": len(candidates),
+            "candidate_sample_keys": sample_keys,
+        })
         normalized = []
         for item in items:
             if not isinstance(item, dict):

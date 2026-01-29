@@ -95,6 +95,11 @@ curl "http://localhost:8000/trending?currency=USD"
 curl "http://localhost:8000/trending?refresh=true&method=cloudscraper&storage_file=storage_dumps/state_usd.json"
 ```
 
+### Debug (коли приходять пусті items)
+```bash
+curl "http://localhost:8000/trending?refresh=true&method=cloudscraper&storage_file=storage_dumps/state_usd.json&debug=true"
+```
+
 ### Завантажити storage‑dump через API (на сервері)
 ```bash
 curl -X POST "http://localhost:8000/storage?name=state_usd.json" \
